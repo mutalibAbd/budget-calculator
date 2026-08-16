@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f1115">
+<title>Daily Budget</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #0f1115;
+    --card: #1a1d24;
+    --card2: #22262f;
+    --text: #e8eaf0;
+    --muted: #8b91a0;
+    --accent: #4ade80;
+    --warn: #f87171;
+    --amber: #fbbf24;
+    --blue: #60a5fa;
+    --radius: 14px;
+  }
+  html, body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans KR", sans-serif; }
+  body { min-height: 100vh; }
+  .wrap { max-width: 480px; margin: 0 auto; padding: 12px 16px 120px; }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 8px; margin-bottom: 16px; position: sticky; top: 0; background: var(--bg); padding: 10px 0; z-index: 10; }
+  .tabs button { flex: 1; padding: 10px 0; border: none; border-radius: 10px; background: var(--card); color: var(--muted); font-size: 15px; font-weight: 600; cursor: pointer; }
+  .tabs button.active { background: var(--card2); color: var(--text); }
+
+  .card { background: var(--card); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; }
+
+  /* Today */
+  .banner { display: none; background: rgba(248,113,113,.12); border: 1px solid rgba(248,113,113,.4); color: var(--warn); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 12px; font-size: 14px; font-weight: 600; }
+  .banner.show { display: block; }
+  .hero { text-align: center; padding: 26px 16px; }
+  .hero .label { color: var(--muted); font-size: 14px; margin-bottom: 6px; }
+  .hero .big { font-size: 46px; font-weight: 800; letter-spacing: -1px; }
+  .hero .big.neg { color: var(--warn); }
+  .hero .sub { color: var(--muted); font-size: 13px; margin-top: 8px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+  .stat { background: var(--card); border-radius: var(--radius); padding: 14px; }
+  .stat .k { color: var(--muted); font-size: 12px; margin-bottom: 4px; }
+  .stat .v { font-size: 19px; font-weight: 700; }
+  .info { background: rgba(96,165,250,.1); border: 1px solid rgba(96,165,250,.3); color: var(--blue); border-radius: var(--radius); padding: 11px 14px; margin-bottom: 12px; font-size: 13px; line-height: 1.45; }
+
+  .list-title { color: var(--muted); font-size: 13px; font-weight: 600; margin: 18px 0 8px; }
+  .exp-row { display: flex; align-items: center; justify-content: space-between; background: var(--card); border-radius: 10px; padding: 11px 14px; margin-bottom: 6px; }
+  .exp-row .amt { font-weight: 700; font-size: 16px; }
+  .exp-row .meta { color: var(--muted); font-size: 12px; margin-left: 10px; }
+  .exp-row .tag { font-size: 11px; color: var(--amber); border: 1px solid rgba(251,191,36,.4); border-radius: 6px; padding: 1px 6px; margin-left: 8px; }
+  .exp-row button { background: none; border: none; color: var(--muted); font-size: 18px; padding: 4px 8px; cursor: pointer; }
+  .empty { color: var(--muted); font-size: 14px; text-align: center; padding: 14px; }
+
+  /* Bottom entry bar */
+  .entrybar { position: fixed; bottom: 0; left: 0; right: 0; background: var(--card2); padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); z-index: 20; border-top: 1px solid #2c313c; }
+  .entrybar .inner { max-width: 480px; margin: 0 auto; }
+  .modechip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--muted); background: var(--card); border: 1px solid #333a47; border-radius: 20px; padding: 5px 12px; margin-bottom: 8px; cursor: pointer; user-select: none; }
+  .modechip.on { color: var(--amber); border-color: rgba(251,191,36,.5); background: rgba(251,191,36,.08); }
+  .entryrow { display: flex; gap: 8px; }
+  .entryrow input { flex: 1; background: var(--bg); border: 1px solid #333a47; border-radius: 12px; color: var(--text); font-size: 20px; font-weight: 600; padding: 13px 14px; min-width: 0; }
+  .entryrow input:focus { outline: none; border-color: var(--accent); }
+  .entryrow button { background: var(--accent); color: #06240f; border: none; border-radius: 12px; font-size: 17px; font-weight: 800; padding: 0 26px; cursor: pointer; }
+  .entryrow button:disabled { opacity: .5; }
+
+  /* Stats */
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { color: var(--muted); font-size: 12px; text-align: right; padding: 6px 4px; font-weight: 600; }
+  th:first-child, td:first-child { text-align: left; }
+  td { padding: 8px 4px; text-align: right; border-top: 1px solid #262b35; }
+  td.over { color: var(--warn); }
+  .chartbox { position: relative; height: 220px; }
+
+  /* Settings / forms */
+  .field { margin-bottom: 12px; }
+  .field label { display: block; color: var(--muted); font-size: 12px; margin-bottom: 5px; }
+  .field input { width: 100%; background: var(--bg); border: 1px solid #333a47; border-radius: 10px; color: var(--text); font-size: 16px; padding: 11px 12px; }
+  .field input:focus { outline: none; border-color: var(--accent); }
+  .field .hint { color: var(--muted); font-size: 12px; margin-top: 4px; }
+  .btn { width: 100%; background: var(--card2); color: var(--text); border: 1px solid #333a47; border-radius: 10px; font-size: 15px; font-weight: 700; padding: 12px; cursor: pointer; }
+  .btn.primary { background: var(--accent); color: #06240f; border: none; }
+  .btn:disabled { opacity: .5; }
+  h3 { font-size: 15px; margin-bottom: 12px; }
+
+  /* Toast */
+  #toast { position: fixed; left: 50%; bottom: 110px; transform: translateX(-50%); background: var(--card2); color: var(--text); border: 1px solid #333a47; border-radius: 10px; padding: 11px 18px; font-size: 14px; font-weight: 600; z-index: 50; opacity: 0; transition: opacity .25s; pointer-events: none; max-width: 90vw; text-align: center; }
+  #toast.show { opacity: 1; }
+  #toast.err { border-color: rgba(248,113,113,.5); color: var(--warn); }
+
+  #setup, #loading { padding: 40px 24px; max-width: 480px; margin: 0 auto; }
+  #setup h2 { margin-bottom: 14px; }
+  #setup ol { margin: 12px 0 0 20px; line-height: 1.7; font-size: 14px; color: var(--muted); }
+  #setup code { background: var(--card); padding: 2px 6px; border-radius: 6px; font-size: 13px; color: var(--text); }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div id="loading"><div class="empty">Loading…</div></div>
+
+<div id="setup" class="hidden">
+  <h2>Setup needed</h2>
+  <p style="font-size:14px; line-height:1.6; color:var(--muted)">Supabase is not configured yet.</p>
+  <ol>
+    <li>Create a free project at <code>supabase.com</code></li>
+    <li>Run <code>schema.sql</code> in the SQL Editor</li>
+    <li>Open this file and paste your Project URL and anon key into <code>SUPABASE_URL</code> / <code>SUPABASE_ANON_KEY</code> at the top of the script</li>
+  </ol>
+</div>
+
+<div id="app" class="hidden">
+  <div class="wrap">
+    <div class="tabs">
+      <button id="tabbtn-today" class="active" onclick="showTab('today')">Today</button>
+      <button id="tabbtn-stats" onclick="showTab('stats')">Stats</button>
+      <button id="tabbtn-settings" onclick="showTab('settings')">Settings</button>
+    </div>
+
+    <!-- TODAY -->
+    <section id="tab-today">
+      <div id="banner" class="banner">⚠️ You're overspending — cut back. Real daily limit is below the floor.</div>
+      <div id="period-msg" class="info hidden"></div>
+      <div class="card hero">
+        <div class="label">Today's remaining budget</div>
+        <div class="big" id="today-remaining">–</div>
+        <div class="sub" id="today-limit-sub"></div>
+      </div>
+      <div class="grid">
+        <div class="stat"><div class="k">Spent today</div><div class="v" id="spent-today">–</div></div>
+        <div class="stat"><div class="k">Days remaining</div><div class="v" id="days-remaining">–</div></div>
+        <div class="stat"><div class="k">Total remaining</div><div class="v" id="total-remaining">–</div></div>
+        <div class="stat"><div class="k">One-time balance</div><div class="v" id="onetime-balance">–</div></div>
+      </div>
+      <div id="setaside" class="info hidden"></div>
+      <div class="list-title" id="today-date-label">Today's expenses</div>
+      <div id="today-list"></div>
+    </section>
+
+    <!-- STATS -->
+    <section id="tab-stats" class="hidden">
+      <div class="grid">
+        <div class="stat"><div class="k">Average daily spend</div><div class="v" id="avg-spend">–</div></div>
+        <div class="stat"><div class="k">Days tracked</div><div class="v" id="days-tracked">–</div></div>
+      </div>
+      <div class="card"><div class="chartbox"><canvas id="chart"></canvas></div></div>
+      <div class="card">
+        <table>
+          <thead><tr><th>Date</th><th>Spent</th><th>Limit</th></tr></thead>
+          <tbody id="history-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section id="tab-settings" class="hidden">
+      <div class="card">
+        <h3>New payment received</h3>
+        <div class="field"><label>Amount (KRW)</label><input id="pay-amount" type="text" inputmode="numeric" placeholder="e.g. 820700"></div>
+        <div class="field"><label>New period length — days remaining from today</label><input id="pay-days" type="text" inputmode="numeric" placeholder="e.g. 30"></div>
+        <button class="btn primary" id="btn-pay" onclick="addPayment()">Add payment</button>
+        <div class="field"><div class="hint">Adds money to the pool. After saving, "days remaining" becomes exactly the number you enter (e.g. Oct 1: payment + 30 → budget runs to Oct 30).</div></div>
+      </div>
+      <div class="card">
+        <h3>One-time purchases pool</h3>
+        <div class="field"><label>Allocate from main budget (KRW)</label><input id="alloc-amount" type="text" inputmode="numeric" placeholder="e.g. 100000"></div>
+        <button class="btn" id="btn-alloc" onclick="allocateOnetime()">Move to one-time pool</button>
+        <div class="field"><div class="hint">Moves money out of the daily rolling budget into a separate balance for electronics etc.</div></div>
+      </div>
+      <div class="card">
+        <h3>Budget settings</h3>
+        <div class="field"><label>Start date</label><input id="set-start" type="date"></div>
+        <div class="field"><label>Total days</label><input id="set-days" type="text" inputmode="numeric"></div>
+        <div class="field"><label>Total budget pool (KRW)</label><input id="set-budget" type="text" inputmode="numeric"><div class="hint" id="budget-usd"></div></div>
+        <div class="field"><label>Exchange rate (KRW per 1 USD)</label><input id="set-rate" type="text" inputmode="decimal"></div>
+        <div class="field"><label>Daily limit floor (KRW)</label><input id="set-floor" type="text" inputmode="numeric"></div>
+        <button class="btn primary" id="btn-save" onclick="saveSettings()">Save settings</button>
+      </div>
+    </section>
+  </div>
+
+  <div class="entrybar" id="entrybar">
+    <div class="inner">
+      <div class="modechip" id="modechip" onclick="toggleMode()">● Daily expense</div>
+      <div class="entryrow">
+        <input id="amount-input" type="text" inputmode="numeric" placeholder="Amount in KRW" autocomplete="off">
+        <button id="btn-add" onclick="addExpense()">Add</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script>
+// ============ CONFIG — paste your Supabase project values here ============
+const SUPABASE_URL = 'https://cputzbwmaondwnzynwia.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwdXR6YndtYW9uZHduenlud2lhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY4Njc2MDYsImV4cCI6MjEwMjQ0MzYwNn0.HWIXg9o2A_bc5pTV4L11vn_CBZ3e6Y7aEp2SMuGrSjw';
+// =========================================================================
+
+let db = null;
+let cache = { settings: null, expenses: [], events: [] };
+let oneTimeMode = false;
+let chart = null;
+let lastRenderedDay = null;
+
+const $ = id => document.getElementById(id);
+const fmt = n => Math.round(n).toLocaleString('ko-KR');
+const krw = n => fmt(n) + '원';
+
+// ---------- KST date helpers (all day math in UTC+9, never local tz) ----------
+function kstToday() {
+  const p = new URLSearchParams(location.search).get('fakeToday');
+  if (p && /^\d{4}-\d{2}-\d{2}$/.test(p)) return p;
+  return new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+}
+function addDays(dayStr, n) {
+  const d = new Date(dayStr + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+function diffDays(a, b) {
+  return Math.round((Date.parse(b + 'T00:00:00Z') - Date.parse(a + 'T00:00:00Z')) / 86400000);
+}
+
+// ---------- Core: deterministic replay of the whole period ----------
+// All state (limits, remaining, history) is recomputed from the event log
+// every render. No stored day snapshots, no midnight job to miss.
+function replay() {
+  const s = cache.settings;
+  const today = kstToday();
+  const start = s.start_date;
+  const floor = Number(s.floor_krw);
+
+  const spentBy = {};
+  let onetimeSpentTotal = 0;
+  const todayExpenses = [];
+  for (const e of cache.expenses) {
+    if (e.day === today) todayExpenses.push(e);
+    if (e.kind === 'onetime') { onetimeSpentTotal += Number(e.amount_krw); continue; }
+    spentBy[e.day] = (spentBy[e.day] || 0) + Number(e.amount_krw);
+  }
+  const eventsBy = {};
+  for (const ev of cache.events) (eventsBy[ev.day] = eventsBy[ev.day] || []).push(ev);
+
+  let pool = Number(s.total_budget_krw);
+  let totalDays = Number(s.total_days);
+  for (const d in eventsBy) {
+    if (d < start) for (const ev of eventsBy[d]) { pool += Number(ev.amount_krw); totalDays += Number(ev.added_days); }
+  }
+
+  const elapsed = diffDays(start, today);
+  const notStarted = elapsed < 0;
+  const n = Math.max(elapsed, 0);
+  const days = [];
+  for (let i = 0; i <= n; i++) {
+    const date = addDays(start, i);
+    for (const ev of (eventsBy[date] || [])) { pool += Number(ev.amount_krw); totalDays += Number(ev.added_days); }
+    const daysLeft = totalDays - i;
+    const limit = daysLeft > 0 ? pool / daysLeft : 0;
+    const spent = spentBy[date] || 0;
+    days.push({ date, limit, spent, daysLeft });
+    if (i < n) pool -= spent; // finalize past days; today's spend subtracted separately below
+  }
+
+  const t = days[n];
+  const spentToday = t.spent;
+  const rawLimit = t.limit;
+  const periodOver = t.daysLeft <= 0;
+  const belowFloor = !periodOver && !notStarted && rawLimit < floor;
+  const displayLimit = periodOver ? 0 : Math.max(rawLimit, floor);
+
+  return {
+    today, notStarted, periodOver, belowFloor, days,
+    daysRemaining: Math.max(t.daysLeft, 0),
+    rawLimit, displayLimit, spentToday,
+    todayRemaining: displayLimit - spentToday,
+    totalRemaining: pool - spentToday,
+    onetimeBalance: Number(s.onetime_balance_krw) - onetimeSpentTotal,
+    todayExpenses: todayExpenses.sort((a, b) => (a.created_at < b.created_at ? 1 : -1)),
+  };
+}
+
+// ---------- Data ----------
+async function loadAll() {
+  const [s, e, ev] = await Promise.all([
+    db.from('settings').select('*').eq('id', 1).single(),
+    db.from('expenses').select('*').order('created_at'),
+    db.from('budget_events').select('*').order('day'),
+  ]);
+  if (s.error) throw s.error;
+  if (e.error) throw e.error;
+  if (ev.error) throw ev.error;
+  cache = { settings: s.data, expenses: e.data, events: ev.data };
+}
+
+async function refresh() {
+  try {
+    await loadAll();
+    render();
+  } catch (err) {
+    console.error('[budget]', err);
+    toast('Load failed — check connection', true);
+  }
+}
+
+// ---------- Actions ----------
+function parseAmount(raw) {
+  const v = parseInt(String(raw).replace(/[^\d-]/g, ''), 10);
+  return Number.isFinite(v) ? v : NaN;
+}
+
+async function addExpense() {
+  const input = $('amount-input');
+  const amount = parseAmount(input.value);
+  if (!(amount > 0)) return toast('Enter a positive amount', true);
+  const st = replay();
+  if (oneTimeMode && amount > st.onetimeBalance) {
+    if (!confirmOk('One-time balance is only ' + krw(st.onetimeBalance) + '. Add anyway?')) return;
+  }
+  const btn = $('btn-add');
+  btn.disabled = true;
+  try {
+    const { error } = await db.from('expenses').insert({ day: kstToday(), amount_krw: amount, kind: oneTimeMode ? 'onetime' : 'daily' });
+    if (error) throw error;
+    input.value = '';
+    await loadAll();
+    render();
+    toast('−' + krw(amount) + (oneTimeMode ? ' (one-time)' : ''));
+  } catch (err) {
+    console.error('[budget]', err);
+    toast('Save failed — try again', true);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// window.confirm blocks the page in some automation contexts; tiny wrapper keeps it isolated
+function confirmOk(msg) { return window.confirm(msg); }
+
+async function deleteExpense(id) {
+  try {
+    const { error } = await db.from('expenses').delete().eq('id', id);
+    if (error) throw error;
+    await loadAll();
+    render();
+    toast('Deleted');
+  } catch (err) {
+    console.error('[budget]', err);
+    toast('Delete failed — try again', true);
+  }
+}
+
+async function addPayment() {
+  const amount = parseAmount($('pay-amount').value);
+  const desiredDays = parseAmount($('pay-days').value);
+  if (!amount || Number.isNaN(amount)) return toast('Enter payment amount', true);
+  if (!(desiredDays > 0)) return toast('Enter the new period length in days', true);
+  // Store the delta that makes days-remaining-from-today equal desiredDays,
+  // regardless of whether the old period is still running or already lapsed.
+  const st = replay();
+  const currentRawDaysLeft = st.days[st.days.length - 1].daysLeft;
+  const daysAdd = desiredDays - currentRawDaysLeft;
+  const btn = $('btn-pay');
+  btn.disabled = true;
+  try {
+    const { error } = await db.from('budget_events').insert({ day: kstToday(), amount_krw: amount, added_days: daysAdd, note: 'payment' });
+    if (error) throw error;
+    $('pay-amount').value = ''; $('pay-days').value = '';
+    await loadAll();
+    render();
+    toast('Payment added: +' + krw(amount) + ', ' + desiredDays + ' days remaining');
+  } catch (err) {
+    console.error('[budget]', err);
+    toast('Save failed — try again', true);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function allocateOnetime() {
+  const amount = parseAmount($('alloc-amount').value);
+  if (!(amount > 0)) return toast('Enter a positive amount', true);
+  const btn = $('btn-alloc');
+  btn.disabled = true;
+  try {
+    const { error: e1 } = await db.from('budget_events').insert({ day: kstToday(), amount_krw: -amount, added_days: 0, note: 'one-time allocation' });
+    if (e1) throw e1;
+    const newBal = Number(cache.settings.onetime_balance_krw) + amount;
+    const { error: e2 } = await db.from('settings').update({ onetime_balance_krw: newBal }).eq('id', 1);
+    if (e2) throw e2;
+    $('alloc-amount').value = '';
+    await loadAll();
+    render();
+    toast('Moved ' + krw(amount) + ' to one-time pool');
+  } catch (err) {
+    console.error('[budget]', err);
+    toast('Save failed — try again', true);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function saveSettings() {
+  const upd = {
+    start_date: $('set-start').value,
+    total_days: parseAmount($('set-days').value),
+    total_budget_krw: parseAmount($('set-budget').value),
+    exchange_rate: parseFloat($('set-rate').value),
+    floor_krw: parseAmount($('set-floor').value),
+  };
+  if (!upd.start_date || !(upd.total_days > 0) || !(upd.total_budget_krw > 0) || !(upd.exchange_rate > 0) || !(upd.floor_krw >= 0)) {
+    return toast('Check the settings values', true);
+  }
+  const btn = $('btn-save');
+  btn.disabled = true;
+  try {
+    const { error } = await db.from('settings').update(upd).eq('id', 1);
+    if (error) throw error;
+    await loadAll();
+    render();
+    toast('Settings saved');
+  } catch (err) {
+    console.error('[budget]', err);
+    toast('Save failed — try again', true);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ---------- UI ----------
+function toggleMode() {
+  oneTimeMode = !oneTimeMode;
+  const chip = $('modechip');
+  chip.classList.toggle('on', oneTimeMode);
+  chip.textContent = oneTimeMode ? '◆ One-time purchase' : '● Daily expense';
+}
+
+function showTab(name) {
+  for (const t of ['today', 'stats', 'settings']) {
+    $('tab-' + t).classList.toggle('hidden', t !== name);
+    $('tabbtn-' + t).classList.toggle('active', t === name);
+  }
+  $('entrybar').classList.toggle('hidden', name !== 'today');
+  if (name === 'stats') renderChart();
+  if (name === 'settings') fillSettingsForm();
+}
+
+function fillSettingsForm() {
+  const s = cache.settings;
+  $('set-start').value = s.start_date;
+  $('set-days').value = s.total_days;
+  $('set-budget').value = s.total_budget_krw;
+  $('set-rate').value = s.exchange_rate;
+  $('set-floor').value = s.floor_krw;
+  const usd = Number(s.total_budget_krw) / Number(s.exchange_rate);
+  $('budget-usd').textContent = '≈ $' + usd.toFixed(2) + ' at current rate';
+}
+
+function render() {
+  const st = replay();
+  lastRenderedDay = st.today;
+
+  $('banner').classList.toggle('show', st.belowFloor);
+
+  const pm = $('period-msg');
+  if (st.notStarted) {
+    pm.textContent = 'Budget period starts on ' + cache.settings.start_date + '.';
+    pm.classList.remove('hidden');
+  } else if (st.periodOver) {
+    pm.textContent = 'Budget period is over. Add a new payment in Settings to start the next period.';
+    pm.classList.remove('hidden');
+  } else pm.classList.add('hidden');
+
+  const big = $('today-remaining');
+  big.textContent = krw(st.todayRemaining);
+  big.classList.toggle('neg', st.todayRemaining < 0);
+  $('today-limit-sub').textContent = st.periodOver ? '' :
+    "Today's limit: " + krw(st.displayLimit) +
+    (st.belowFloor ? ' (floor — real: ' + krw(st.rawLimit) + ')' : '');
+
+  $('spent-today').textContent = krw(st.spentToday);
+  $('days-remaining').textContent = st.daysRemaining;
+  $('total-remaining').textContent = krw(st.totalRemaining);
+  $('onetime-balance').textContent = krw(st.onetimeBalance);
+
+  // Set-aside note for the pre-Sept-1 stretch (only for the original period)
+  const sa = $('setaside');
+  if (cache.settings.start_date === '2026-08-16' && st.today < '2026-09-01' && !st.notStarted) {
+    sa.innerHTML = 'Set-aside is built into your daily limit: spending ~41,035원/day now automatically saves ~27,350원/day (~$290 total) to carry into September.';
+    sa.classList.remove('hidden');
+  } else sa.classList.add('hidden');
+
+  $('today-date-label').textContent = "Today's expenses — " + st.today + ' (KST)';
+  const list = $('today-list');
+  if (!st.todayExpenses.length) {
+    list.innerHTML = '<div class="empty">Nothing logged today.</div>';
+  } else {
+    list.innerHTML = st.todayExpenses.map(e =>
+      '<div class="exp-row"><div><span class="amt">' + krw(e.amount_krw) + '</span>' +
+      (e.kind === 'onetime' ? '<span class="tag">one-time</span>' : '') +
+      '<span class="meta">' + timeLabel(e.created_at) + '</span></div>' +
+      '<button aria-label="Delete" onclick="deleteExpense(\'' + e.id + '\')">✕</button></div>'
+    ).join('');
+  }
+
+  renderStats(st);
+  if (!$('tab-stats').classList.contains('hidden')) renderChart();
+}
+
+function timeLabel(iso) {
+  if (!iso) return '';
+  const d = new Date(new Date(iso).getTime() + 9 * 3600 * 1000);
+  return String(d.getUTCHours()).padStart(2, '0') + ':' + String(d.getUTCMinutes()).padStart(2, '0');
+}
+
+function renderStats(st) {
+  const completed = st.days.slice(0, st.days.length - 1);
+  const basis = completed.length ? completed : st.days;
+  const avg = basis.reduce((a, d) => a + d.spent, 0) / basis.length;
+  $('avg-spend').textContent = krw(avg);
+  $('days-tracked').textContent = st.days.length;
+
+  $('history-body').innerHTML = [...st.days].reverse().map(d =>
+    '<tr><td>' + d.date.slice(5) + (d.date === st.today ? ' (today)' : '') + '</td>' +
+    '<td class="' + (d.spent > d.limit ? 'over' : '') + '">' + fmt(d.spent) + '</td>' +
+    '<td>' + fmt(Math.max(d.limit, 0)) + '</td></tr>'
+  ).join('');
+}
+
+function renderChart() {
+  if (typeof Chart === 'undefined') return;
+  const st = replay();
+  const labels = st.days.map(d => d.date.slice(5));
+  const spent = st.days.map(d => Math.round(d.spent));
+  const limits = st.days.map(d => Math.round(Math.max(d.limit, 0)));
+  if (chart) chart.destroy();
+  chart = new Chart($('chart'), {
+    data: {
+      labels,
+      datasets: [
+        { type: 'bar', label: 'Spent', data: spent, backgroundColor: 'rgba(74,222,128,.65)', borderRadius: 4 },
+        { type: 'line', label: 'Limit', data: limits, borderColor: '#60a5fa', borderWidth: 2, pointRadius: 0, tension: .2 },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: '#8b91a0', boxWidth: 12 } } },
+      scales: {
+        x: { ticks: { color: '#8b91a0', maxTicksLimit: 8 }, grid: { display: false } },
+        y: { ticks: { color: '#8b91a0' }, grid: { color: '#262b35' } },
+      },
+    },
+  });
+}
+
+let toastTimer = null;
+function toast(msg, isErr) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.toggle('err', !!isErr);
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+// ---------- Boot ----------
+async function boot() {
+  if (SUPABASE_URL.includes('PASTE_') || SUPABASE_ANON_KEY.includes('PASTE_')) {
+    $('loading').classList.add('hidden');
+    $('setup').classList.remove('hidden');
+    return;
+  }
+  db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  try {
+    await loadAll();
+    $('loading').classList.add('hidden');
+    $('app').classList.remove('hidden');
+    render();
+  } catch (err) {
+    console.error('[budget]', err);
+    $('loading').innerHTML = '<div class="empty">Could not load data — check connection and Supabase config.<br><br><button class="btn" onclick="location.reload()">Retry</button></div>';
+  }
+  // KST day flip while page stays open → re-render (replay handles the rollover)
+  setInterval(() => { if (cache.settings && kstToday() !== lastRenderedDay) render(); }, 30000);
+  // Re-fetch when returning to the tab (phone ↔ computer sync)
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && cache.settings) refresh(); });
+  $('amount-input').addEventListener('keydown', e => { if (e.key === 'Enter') addExpense(); });
+}
+boot();
+</script>
+</body>
+</html>
