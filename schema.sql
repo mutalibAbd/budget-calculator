@@ -32,6 +32,6 @@ alter table settings disable row level security;
 alter table expenses disable row level security;
 alter table budget_events disable row level security;
 
--- Initial state: Aug 16, 45 days, $1,305 x 1,415 = 1,846,575 KRW
+-- Initial state: Aug 16, 45 days, $1,205 x 1,415 = 1,705,075 KRW ($800 dorm deducted)
 insert into settings (id, start_date, total_days, total_budget_krw, exchange_rate)
-values (1, '2026-08-16', 45, 1846575, 1415);
+values (1, '2026-08-16', 45, 1705075, 1415);
