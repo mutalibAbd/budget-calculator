@@ -16,8 +16,12 @@ create table expenses (
   day date not null,
   amount_krw bigint not null,
   kind text not null default 'daily' check (kind in ('daily','onetime')),
+  category text not null default 'other',
   created_at timestamptz not null default now()
 );
+
+-- Migration for databases created before the category column existed:
+-- alter table expenses add column category text not null default 'other';
 
 create table budget_events (
   id uuid primary key default gen_random_uuid(),
